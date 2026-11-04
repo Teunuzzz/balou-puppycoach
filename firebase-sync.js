@@ -72,8 +72,8 @@ function attachListeners() {
     const old = JSON.parse(localStorage.getItem('balou_config') || '{}');
     if (JSON.stringify(old) !== JSON.stringify(incoming)) {
       localStorage.setItem('balou_config', JSON.stringify(incoming));
-      // Nieuwe instellingen worden bij de volgende paginalading gebruikt voor leeftijd en dagschema.
-      location.reload();
+      // Niet automatisch herladen: voorkomt opnieuw tonen van het inlogscherm.
+      if (typeof window.balouConfigUpdated === 'function') window.balouConfigUpdated(incoming);
     }
   }, error => { settingsReady = false; settingsError = error.code || error.message; showSyncStatus(); console.error('Balou gedeelde instellingen:', error); });
 }
@@ -111,6 +111,7 @@ window.balouSync = {
     } catch (error) {
       settingsError = error.code || error.message;
       showSyncStatus();
+      console.error('Balou instellingen opslaan mislukt:', error);
       throw error;
     }
   },
