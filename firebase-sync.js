@@ -67,7 +67,7 @@ function attachListeners() {
       // Nieuwe instellingen worden bij de volgende paginalading gebruikt voor leeftijd en dagschema.
       location.reload();
     }
-  }, error => setStatus('Instellingen niet beschikbaar: ' + error.code));
+  }, error => { settingsReady = false; setStatus('Instellingen niet beschikbaar: ' + (error.code || error.message)); console.error('Balou gedeelde instellingen:', error); });
 }
 login.querySelector('form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -94,8 +94,12 @@ window.balouSync = {
   },
   async saveConfig(config) {
     if (!currentUser) throw new Error('Niet ingelogd');
-    if (!settingsReady) throw new Error('Wacht tot de gedeelde instellingen zijn geladen');
-    await setDoc(configDoc(), { config, updatedBy: currentUser.email, updatedAt: serverTimestamp() }, { merge: true });
+    try {
+      await setDoc(configDoc(), { config, updatedBy: currentUser.email, updatedAt: serverTimestamp() }, { merge: true });
+    } catch (error) {
+      setStatus('Instellingen opslaan mislukt: ' + (error.code || error.message));
+      throw error;
+    }
   },
   logout: () => signOut(auth)
 };
