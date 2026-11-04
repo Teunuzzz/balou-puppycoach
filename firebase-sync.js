@@ -56,7 +56,7 @@ function attachListeners() {
     updateChecks(snapshot.exists() ? snapshot.data().tasks || {} : {});
     setStatus(`✓ Gedeeld met gezin · ${currentUser.email}`);
   }, error => { ready = false; setStatus('Synchronisatie mislukt: ' + error.code); });
-  unsubscribeSettings = onSnapshot(configDoc(), snapshot => {
+  unsubscribeSettings = onSnapshot(configDoc, snapshot => {
     settingsReady = true;
     if (!snapshot.exists()) return;
     const incoming = snapshot.data().config;
@@ -95,7 +95,7 @@ window.balouSync = {
   async saveConfig(config) {
     if (!currentUser) throw new Error('Niet ingelogd');
     try {
-      await setDoc(configDoc(), { config, updatedBy: currentUser.email, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(configDoc, { config, updatedBy: currentUser.email, updatedAt: serverTimestamp() }, { merge: true });
     } catch (error) {
       setStatus('Instellingen opslaan mislukt: ' + (error.code || error.message));
       throw error;
