@@ -20,6 +20,14 @@ let unsubscribeSettings = null;
 let currentUser = null;
 let ready = false;
 let settingsReady = false;
+let settingsError = '';
+function showSyncStatus() {
+  if (!currentUser) return setStatus('Log in om te synchroniseren');
+  if (settingsError) return setStatus('⚠ Instellingen: ' + settingsError);
+  if (!ready) return setStatus('Dagelijkse voortgang ophalen…');
+  if (!settingsReady) return setStatus('Dagelijkse voortgang verbonden · instellingen laden…');
+  setStatus('✓ Dagelijkse voortgang én instellingen verbonden');
+}
 const status = document.createElement('div');
 status.id = 'balou-sync-status';
 status.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;max-width:650px;margin:auto;background:#184f43;color:white;padding:9px 12px;border-radius:12px;font-size:12px;text-align:center;z-index:12;box-shadow:0 2px 12px #0003';
@@ -50,14 +58,14 @@ function updateChecks(data) {
   if (typeof window.balouUpdateProgress === 'function') window.balouUpdateProgress();
 }
 function attachListeners() {
-  unsubscribeTasks?.(); unsubscribeSettings?.(); settingsReady = false;
+  unsubscribeTasks?.(); unsubscribeSettings?.(); settingsReady = false; settingsError = ''; showSyncStatus();
   unsubscribeTasks = onSnapshot(taskDoc(dayString()), snapshot => {
     ready = true;
     updateChecks(snapshot.exists() ? snapshot.data().tasks || {} : {});
-    setStatus(`✓ Gedeeld met gezin · ${currentUser.email}`);
-  }, error => { ready = false; setStatus('Synchronisatie mislukt: ' + error.code); });
+    showSyncStatus();
+  }, error => { ready = false; setStatus('Dagelijkse voortgang mislukt: ' + (error.code || error.message)); console.error('Balou dagelijkse voortgang:', error); });
   unsubscribeSettings = onSnapshot(configDoc, snapshot => {
-    settingsReady = true;
+    settingsReady = true; settingsError = ''; showSyncStatus();
     if (!snapshot.exists()) return;
     const incoming = snapshot.data().config;
     if (!incoming) return;
@@ -67,7 +75,7 @@ function attachListeners() {
       // Nieuwe instellingen worden bij de volgende paginalading gebruikt voor leeftijd en dagschema.
       location.reload();
     }
-  }, error => { settingsReady = false; setStatus('Instellingen niet beschikbaar: ' + (error.code || error.message)); console.error('Balou gedeelde instellingen:', error); });
+  }, error => { settingsReady = false; settingsError = error.code || error.message; showSyncStatus(); console.error('Balou gedeelde instellingen:', error); });
 }
 login.querySelector('form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -79,7 +87,7 @@ login.querySelector('form').addEventListener('submit', async e => {
 onAuthStateChanged(auth, user => {
   currentUser = user;
   ready = false;
-  if (!user) { unsubscribeTasks?.(); unsubscribeSettings?.(); login.style.display = 'flex'; setStatus('Log in om te synchroniseren'); return; }
+  if (!user) { unsubscribeTasks?.(); unsubscribeSettings?.(); settingsReady = false; settingsError = ''; login.style.display = 'flex'; setStatus('Log in om te synchroniseren'); return; }
   login.style.display = 'none';
   setStatus('Voortgang ophalen…');
   attachListeners();
@@ -96,8 +104,13 @@ window.balouSync = {
     if (!currentUser) throw new Error('Niet ingelogd');
     try {
       await setDoc(configDoc, { config, updatedBy: currentUser.email, updatedAt: serverTimestamp() }, { merge: true });
+      settingsError = '';
+      settingsReady = true;
+      showSyncStatus();
+      return true;
     } catch (error) {
-      setStatus('Instellingen opslaan mislukt: ' + (error.code || error.message));
+      settingsError = error.code || error.message;
+      showSyncStatus();
       throw error;
     }
   },
