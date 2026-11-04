@@ -1,0 +1,34 @@
+// Balou Puppycoach — gedeelde agenda, te laden na firebase-sync.js
+import { getApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
+import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
+const auth = getAuth(getApp()), db = getFirestore(getApp());
+const tab = document.createElement('button'); tab.dataset.tab='agenda'; tab.textContent='Agenda';
+document.getElementById('tabs').append(tab);
+const section = document.createElement('section'); section.id='agenda'; section.className='hide';
+document.getElementById('instellingen').after(section);
+const css=document.createElement('style');css.textContent=`#agenda input:not([type=checkbox]),#agenda select{width:100%;border:1px solid #cbd8cf;border-radius:10px;padding:11px;background:white;font-size:16px}#agenda .ag-row{padding:12px 0;border-bottom:1px solid #edf0eb}#agenda .ag-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}#agenda .ag-date{font-size:13px;color:#65736c}#agenda .ag-done{opacity:.6}#agenda .ag-row b{display:block;margin:3px 0}#agenda .ag-row small{color:#65736c}#agenda .ag-past{border-left:3px solid #cbd8cf;padding-left:10px}`;document.head.append(css);
+// Existing tab handler was attached before this script: hook only the new tab.
+tab.onclick=()=>{document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===tab));document.querySelectorAll('main section').forEach(s=>s.classList.toggle('hide',s!==section));};
+let user=null, events=[], unsubscribe=null, busy=false;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const nice=s=>new Date(s+'T12:00:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
+const eventCollection=collection(db,'balouAgenda');
+function render(){
+ const sorted=[...events].sort((a,b)=>(a.date+' '+(a.time||'')).localeCompare(b.date+' '+(b.time||'')));
+ const future=sorted.filter(e=>e.date>=today()&&!e.done), past=sorted.filter(e=>e.date<today()||e.done).reverse().slice(0,20);
+ const card=(e)=>`<div class="ag-row ${e.done?'ag-done':''} ${e.date<today()?'ag-past':''}"><div class="ag-date">${nice(e.date)} ${esc(e.time||'')} · ${esc(e.type||'Afspraak')}</div><b>${esc(e.title)}</b>${e.note?`<small>${esc(e.note)}</small>`:''}<small style="display:block">${e.done?'✓ Afgerond door '+esc(e.doneBy||'gezin'):'Toegevoegd door '+esc(e.createdBy||'gezin')}</small><div class="ag-actions"><button class="btn secondary" data-toggle="${esc(e.id)}">${e.done?'Opnieuw openen':'✓ Gedaan'}</button><button class="btn secondary" data-edit="${esc(e.id)}">Bewerken</button><button class="btn secondary" data-delete="${esc(e.id)}">Verwijderen</button></div></div>`;
+ section.innerHTML=`<div class="card"><h2>📅 Balou's agenda</h2><p class="muted">Jullie gezamenlijke afspraken, activiteiten en mijlpalen. Op beide telefoons direct bijgewerkt.</p><h2 style="font-size:17px">Komt eraan (${future.length})</h2>${future.length?future.map(card).join(''):'<p class="muted">Nog geen komende afspraken.</p>'}</div><div class="card"><h2>Afspraak toevoegen</h2><form id="ag-form"><input type="hidden" id="ag-id"><label for="ag-title">Wat staat er op de planning?</label><input id="ag-title" maxlength="120" required placeholder="Bijv. puppycursus"><label for="ag-date">Datum</label><input id="ag-date" type="date" required value="${today()}"><label for="ag-time">Tijd (optioneel)</label><input id="ag-time" type="time"><label for="ag-type">Soort</label><select id="ag-type"><option>Puppycursus</option><option>Dierenarts</option><option>Socialisatie</option><option>Verzorging</option><option>Uitje</option><option>Overig</option></select><label for="ag-note">Opmerking</label><textarea id="ag-note" maxlength="1000" placeholder="Locatie, wat meenemen, bijzonderheden..."></textarea><p id="ag-error" class="muted" role="status"></p><button class="btn" id="ag-save" type="submit">Afspraak opslaan</button> <button class="btn secondary" type="button" id="ag-cancel">Wissen</button></form></div><div class="card"><h2>Gedaan / voorbij</h2>${past.length?past.map(card).join(''):'<p class="muted">Hier verschijnt jullie geschiedenis.</p>'}</div>`;
+ section.querySelector('#ag-form').onsubmit=save;
+ section.querySelector('#ag-cancel').onclick=()=>{section.querySelector('#ag-form').reset();section.querySelector('#ag-id').value='';section.querySelector('#ag-date').value=today();};
+ section.querySelectorAll('[data-toggle]').forEach(b=>b.onclick=()=>change(b.dataset.toggle));
+ section.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>remove(b.dataset.delete));
+ section.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>edit(b.dataset.edit));
+}
+async function save(e){e.preventDefault();if(busy||!user)return;const get=id=>section.querySelector('#'+id).value.trim();const id=get('ag-id'),data={title:get('ag-title'),date:get('ag-date'),time:get('ag-time'),type:get('ag-type'),note:get('ag-note')};if(!data.title||!data.date)return;busy=true;const msg=section.querySelector('#ag-error');msg.textContent='Opslaan…';try{if(id)await updateDoc(doc(db,'balouAgenda',id),{...data,updatedBy:user.email,updatedAt:serverTimestamp()});else await addDoc(eventCollection,{...data,done:false,createdBy:user.email,createdAt:serverTimestamp()});msg.textContent='Opgeslagen';}catch(err){msg.textContent='Opslaan mislukt: '+err.code;}finally{busy=false;}}
+function edit(id){const e=events.find(x=>x.id===id);if(!e)return;for(const key of ['title','date','time','type','note'])section.querySelector('#ag-'+key).value=e[key]||'';section.querySelector('#ag-id').value=id;section.querySelector('#ag-form').scrollIntoView({behavior:'smooth',block:'center'});}
+async function change(id){const e=events.find(x=>x.id===id);if(!e||!user)return;try{await updateDoc(doc(db,'balouAgenda',id),{done:!e.done,doneBy:!e.done?user.email:null,updatedAt:serverTimestamp()});}catch(err){alert('Bijwerken mislukt: '+err.code);}}
+async function remove(id){if(!user||!confirm('Deze afspraak definitief verwijderen?'))return;try{await deleteDoc(doc(db,'balouAgenda',id));}catch(err){alert('Verwijderen mislukt: '+err.code);}}
+onAuthStateChanged(auth,u=>{user=u;unsubscribe?.();unsubscribe=null;if(!u){events=[];render();return;}unsubscribe=onSnapshot(eventCollection,s=>{events=s.docs.map(d=>({id:d.id,...d.data()}));render();},err=>{section.innerHTML='<div class="card">Agenda laden mislukt: '+esc(err.code)+'</div>';});});
+render();
