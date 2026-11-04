@@ -1,0 +1,11 @@
+Balou Puppycoach v7 — Dagschema
+
+Upload alle bestanden uit deze map naar de hoofdmap van GitHub, inclusief het nieuwe balou-dagschema.js.
+
+Nieuw: tab Uitlaten heet Dagschema; gezamenlijke afvinkstatus in balouDays; standaardschema en weekdagvarianten in balouSchedules/main; eenmalige dagschema-afwijkingen in balouDays/YYYY-MM-DD. Agenda blijft werken en heeft al een Gedaan-knop.
+
+LET OP: Firestore-regels moeten ook de twee extra Firebase Authentication-UIDs toestaan. De app implementeert nog geen aparte beveiligde ouder/kind-rollen; alle toegelaten gebruikers kunnen het schema wijzigen. Stel dit pas in met gecontroleerde Firebase security rules als je de UIDs en gewenste rechten hebt.
+
+Er is geen automatische database-import nodig: de collecties ontstaan bij de eerste opslag.
+
+Test: open app, kies Dagschema, pas duur aan met potlood, kies Alleen vandaag en sla op. Controleer balouDays/datum. Wijzig daarna iedere donderdag en controleer balouSchedules/main.
