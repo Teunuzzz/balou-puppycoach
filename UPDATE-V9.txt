@@ -1,0 +1,1 @@
+Balou Puppycoach v9: vóór thuiskomst dagelijks drie voorbereidende taken; vanaf thuiskomstdatum automatisch puppydagschema. Voorbereiding per datum aanpasbaar en afvinkbaar via Firebase. Bestaande agenda en gezinsnamen behouden.
