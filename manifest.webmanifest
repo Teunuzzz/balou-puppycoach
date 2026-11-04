@@ -1,0 +1,25 @@
+{
+  "name": "Balou Puppycoach",
+  "short_name": "Balou",
+  "description": "Dagelijkse puppycoach voor wandelen, zindelijkheid, oefeningen en opvoeding",
+  "lang": "nl-NL",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f1",
+  "theme_color": "#184f43",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
