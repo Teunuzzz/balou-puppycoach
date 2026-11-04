@@ -1,0 +1,8 @@
+Balou Puppycoach v8 — gezinsnamen
+
+Upload alle bestanden uit deze ZIP naar de ROOT van GitHub repository.
+Nieuw: balou-family.js.
+Instellingen > Gezinsleden: Papa, Mama, Wouter, Koen aanpassen.
+Firebase pad: balouShared/family.
+Nieuwe registraties slaan UID op; bestaande registraties blijven met oorspronkelijke e-mailadres weergegeven.
+Beveiliging: UI beperkt bewerken tot ouders. Voor afdwingen van ouderrechten op database-niveau: zie FIRESTORE-RULES-VOORBEELD.txt.

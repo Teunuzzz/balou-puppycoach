@@ -42,7 +42,9 @@ const setStatus = msg => { status.textContent = msg; };
 const taskDoc = day => doc(db, 'balouDays', day);
 const configDoc = doc(db, 'balouShared', 'settings');
 const dayString = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+let lastTasks = {};
 function updateChecks(data) {
+  lastTasks = data || {};
   document.querySelectorAll('[data-check]').forEach(el => {
     const record = data?.[el.dataset.check];
     el.checked = !!record?.done;
@@ -53,7 +55,7 @@ function updateChecks(data) {
     let by = label.querySelector('.balou-by');
     if (!by) { by = document.createElement('small'); by.className = 'balou-by'; label.querySelector('span')?.append(by); }
     const when = record?.at?.toDate?.();
-    by.textContent = record?.done ? `✓ ${record.by || 'Gezin'}${when ? ' · ' + when.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}) : ''}` : '';
+    by.textContent = record?.done ? `✓ ${(window.balouFamily?.display(record.byUid, record.by) || record.by || 'Gezin')}${when ? ' · ' + when.toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}) : ''}` : '';
   });
   if (typeof window.balouUpdateProgress === 'function') window.balouUpdateProgress();
 }
@@ -96,7 +98,7 @@ window.balouSync = {
   async check(id, done) {
     if (!currentUser || !ready) { setStatus('Wacht op synchronisatie en probeer opnieuw'); return false; }
     try {
-      await setDoc(taskDoc(dayString()), { tasks: { [id]: { done, by: currentUser.email, at: serverTimestamp() } } }, { merge: true });
+      await setDoc(taskDoc(dayString()), { tasks: { [id]: { done, by: currentUser.email, byUid: currentUser.uid, at: serverTimestamp() } } }, { merge: true });
       return true;
     } catch (e) { setStatus('Opslaan mislukt: ' + e.code); return false; }
   },
@@ -124,3 +126,5 @@ logoutButton.style.cssText = 'margin:8px 0';
 logoutButton.onclick = () => window.balouSync.logout();
 const footer = document.querySelector('footer');
 if (footer) { footer.textContent = 'Balou Puppycoach · Gezamenlijke voortgang via Firebase'; footer.before(logoutButton); }
+
+window.addEventListener('balou-family-updated', () => updateChecks(lastTasks));

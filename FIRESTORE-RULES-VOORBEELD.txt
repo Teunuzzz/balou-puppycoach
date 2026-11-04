@@ -1,0 +1,24 @@
+LET OP: voorbeeld ter integratie in je BESTAANDE Firestore-regels; vervang niet blind je huidige regels.
+
+function isGezinslid() {
+  return request.auth != null && request.auth.uid in [
+    'ZEEQ2rghbSM5S8zZCSsvMvOFQRh1',
+    'UehltQjAMYU1Qk2Bq07EzvfMYmF3',
+    'zd6Id1hQuCWLV9qn8rBTv9FhCu92',
+    '2QZQccYpyYZwZ5YDVdTvvbRaNxq2'
+  ];
+}
+function isOuder() {
+  return request.auth != null && request.auth.uid in [
+    'ZEEQ2rghbSM5S8zZCSsvMvOFQRh1',
+    'UehltQjAMYU1Qk2Bq07EzvfMYmF3'
+  ];
+}
+
+match /balouShared/family {
+  allow read: if isGezinslid();
+  allow create, update, delete: if isOuder();
+}
+
+BELANGRIJK: een bredere match /{document=**} met allow write: if isGezinslid() geeft kinderen alsnog schrijfrechten!
+Om ouderrechten af te dwingen moet je brede allow-write-regels verwijderen of beperken en expliciete matches maken voor andere collecties.
