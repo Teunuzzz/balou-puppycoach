@@ -1,6 +1,6 @@
 // Balou Puppycoach — Firebase synchronisatie (GitHub Pages, zonder bundler)
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getAuth, browserLocalPersistence, setPersistence, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -19,6 +19,7 @@ let unsubscribeTasks = null;
 let unsubscribeSettings = null;
 let currentUser = null;
 let ready = false;
+let settingsReady = false;
 const status = document.createElement('div');
 status.id = 'balou-sync-status';
 status.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;max-width:650px;margin:auto;background:#184f43;color:white;padding:9px 12px;border-radius:12px;font-size:12px;text-align:center;z-index:12;box-shadow:0 2px 12px #0003';
@@ -49,24 +50,22 @@ function updateChecks(data) {
   if (typeof window.balouUpdateProgress === 'function') window.balouUpdateProgress();
 }
 function attachListeners() {
-  unsubscribeTasks?.(); unsubscribeSettings?.();
+  unsubscribeTasks?.(); unsubscribeSettings?.(); settingsReady = false;
   unsubscribeTasks = onSnapshot(taskDoc(dayString()), snapshot => {
     ready = true;
     updateChecks(snapshot.exists() ? snapshot.data().tasks || {} : {});
     setStatus(`✓ Gedeeld met gezin · ${currentUser.email}`);
   }, error => { ready = false; setStatus('Synchronisatie mislukt: ' + error.code); });
   unsubscribeSettings = onSnapshot(configDoc(), snapshot => {
+    settingsReady = true;
     if (!snapshot.exists()) return;
     const incoming = snapshot.data().config;
     if (!incoming) return;
     const old = JSON.parse(localStorage.getItem('balou_config') || '{}');
     if (JSON.stringify(old) !== JSON.stringify(incoming)) {
       localStorage.setItem('balou_config', JSON.stringify(incoming));
-      // Opnieuw tekenen met de gedeelde instellingen, zonder eindeloze reload.
-      if (!sessionStorage.getItem('balou-settings-reloading')) {
-        sessionStorage.setItem('balou-settings-reloading','1');
-        location.reload();
-      } else { sessionStorage.removeItem('balou-settings-reloading'); }
+      // Nieuwe instellingen worden bij de volgende paginalading gebruikt voor leeftijd en dagschema.
+      location.reload();
     }
   }, error => setStatus('Instellingen niet beschikbaar: ' + error.code));
 }
@@ -74,7 +73,7 @@ login.querySelector('form').addEventListener('submit', async e => {
   e.preventDefault();
   const err = document.getElementById('balou-login-error');
   err.textContent = '';
-  try { await signInWithEmailAndPassword(auth, document.getElementById('balou-email').value.trim(), document.getElementById('balou-password').value); }
+  try { await setPersistence(auth, browserLocalPersistence); await signInWithEmailAndPassword(auth, document.getElementById('balou-email').value.trim(), document.getElementById('balou-password').value); }
   catch (error) { err.textContent = 'Inloggen mislukt. Controleer e-mailadres en wachtwoord (' + error.code + ').'; }
 });
 onAuthStateChanged(auth, user => {
@@ -95,6 +94,7 @@ window.balouSync = {
   },
   async saveConfig(config) {
     if (!currentUser) throw new Error('Niet ingelogd');
+    if (!settingsReady) throw new Error('Wacht tot de gedeelde instellingen zijn geladen');
     await setDoc(configDoc(), { config, updatedBy: currentUser.email, updatedAt: serverTimestamp() }, { merge: true });
   },
   logout: () => signOut(auth)
