@@ -12,6 +12,6 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{document.query
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) { window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(console.warn)); }
 window.addEventListener('pageshow',()=>{if(window.__balouOpenedDay && window.__balouOpenedDay!==localDay()) location.reload();});window.__balouOpenedDay=localDay();
 </script>
-<script type="module" src="./firebase-sync.js?v=2"></script>
- <script type="module" src="./balou-agenda.js?v=2"></script>
+<script type="module" src="./firebase-sync.js?v=5-settings"></script>
+ <script type="module" src="./balou-agenda.js?v=5-settings"></script>
 </body></html>
